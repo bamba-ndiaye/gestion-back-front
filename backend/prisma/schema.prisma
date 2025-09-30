@@ -1,0 +1,113 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String   // mot de passe hashé
+  role      Role     @default(CASHIER)
+  companyId Int?     // nullable pour Super Admin
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  CASHIER
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  employees Employee[]
+  users     User[]
+}
+model Employee {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payslips  Payslip[]
+}
+
+// ---- Sprint 3 : Gestion de paie ----
+
+// 1️⃣ Enum pour l’état d’un cycle de paie
+enum PayRunStatus {
+  DRAFT       // brouillon, en préparation
+  VALIDATED   // validé, prêt pour génération des bulletins
+  PAID        // paie effectuée
+}
+
+// 2️⃣ Modèle PayRun = un cycle de paie (ex : Septembre 2025)
+model PayRun {
+  id        Int           @id @default(autoincrement())
+  month     Int           // 1 à 12
+  year      Int
+  startDate DateTime
+  endDate   DateTime
+  status    PayRunStatus  @default(DRAFT)
+
+  // relation : un cycle possède plusieurs bulletins
+  payslips  Payslip[]
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// 3️⃣ Modèle Payslip = bulletin de salaire
+// model Payslip {
+//   id              Int       @id @default(autoincrement())
+//   employeeId      Int
+//   payRunId        Int
+//   baseSalary      Decimal   @db.Decimal(10,2)
+//   bonus           Decimal   @db.Decimal(10,2) @default(0)
+//   deductions      Decimal   @db.Decimal(10,2) @default(0)
+//   netSalary       Decimal   @db.Decimal(10,2)
+//   generatedPdfUrl String?   // chemin ou URL du PDF généré
+
+//   // relations
+//   employee Employee @relation(fields: [employeeId], references: [id])
+//   payRun   PayRun   @relation(fields: [payRunId],   references: [id])
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+model Payslip {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int
+  payRunId      Int
+  baseSalary    Float
+  bonus         Float
+  deductions    Float
+  netSalary     Float
+  amountPaid    Float?    @default(0)    // <-- AJOUTER
+  generatedPdfUrl String?
+  receiptPdfUrl   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  payRun        PayRun   @relation(fields: [payRunId], references: [id])
+}

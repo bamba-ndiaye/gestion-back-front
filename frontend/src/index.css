@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core Background Colors */
+    --background: 220 13% 9%;
+    --foreground: 220 13% 98%;
+
+    /* Card & Surface Colors */
+    --card: 220 13% 12%;
+    --card-foreground: 220 13% 98%;
+
+    /* Popover Colors */
+    --popover: 220 13% 10%;
+    --popover-foreground: 220 13% 98%;
+
+    /* Brand Colors */
+    --primary: 217 91% 60%;
+    --primary-foreground: 220 13% 9%;
+
+    /* Secondary Colors */
+    --secondary: 220 13% 16%;
+    --secondary-foreground: 220 13% 98%;
+
+    /* Muted Colors */
+    --muted: 220 13% 14%;
+    --muted-foreground: 220 9% 65%;
+
+    /* Accent Colors */
+    --accent: 217 91% 60%;
+    --accent-foreground: 220 13% 9%;
+
+    /* Status Colors */
+    --success: 142 76% 45%;
+    --success-foreground: 220 13% 9%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 13% 9%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 220 13% 98%;
+
+    /* Border & Input Colors */
+    --border: 220 13% 20%;
+    --input: 220 13% 16%;
+    --ring: 217 91% 60%;
+
+    /* Radius */
+    --radius: 8px;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 50%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(142 76% 40%));
+    --gradient-card: linear-gradient(145deg, hsl(220 13% 12%), hsl(220 13% 14%));
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(220 13% 4% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(220 13% 4% / 0.1), 0 2px 4px -1px hsl(220 13% 4% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(220 13% 4% / 0.1), 0 4px 6px -2px hsl(220 13% 4% / 0.05);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+
+    /* Sidebar specific colors */
+    --sidebar-background: 220 13% 8%;
+    --sidebar-foreground: 220 13% 95%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 220 13% 9%;
+    --sidebar-accent: 220 13% 14%;
+    --sidebar-accent-foreground: 220 13% 95%;
+    --sidebar-border: 220 13% 18%;
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  .dark {
+    /* Already using dark theme as default */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
