@@ -82,3 +82,13 @@ export async function getPayslipById(id: number) {
   return prisma.payslip.findUnique({ where: { id } });
 }
 
+export async function getPayslipsByEmployee(employeeId: number) {
+  return prisma.payslip.findMany({
+    where: { employeeId },
+    include: {
+      payRun: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+

@@ -10,4 +10,7 @@ router.post('/generate/:payRunId', controller.generate);
 // Télécharger le PDF d’un bulletin
 router.get('/download/:payslipId', controller.downloadPDF);
 
+// Obtenir les bulletins d'un employé
+router.get('/employee/:employeeId', controller.getEmployeePayslips);
+
 export default router;

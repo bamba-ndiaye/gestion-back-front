@@ -33,3 +33,15 @@ export async function downloadPDF(req: Request, res: Response) {
     res.status(500).json({ error: err.message });
   }
 }
+
+// Obtenir les bulletins d'un employé
+export async function getEmployeePayslips(req: Request, res: Response) {
+  const employeeId = Number(req.params.employeeId);
+
+  try {
+    const payslips = await service.getPayslipsByEmployee(employeeId);
+    res.json(payslips);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+}
