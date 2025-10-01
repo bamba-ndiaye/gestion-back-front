@@ -42,6 +42,8 @@ model Employee {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
+  telephone String?
+  service   String?
   isActive  Boolean  @default(true)
   companyId Int
   company   Company  @relation(fields: [companyId], references: [id])
@@ -75,24 +77,7 @@ model PayRun {
   updatedAt DateTime      @updatedAt
 }
 
-// 3️⃣ Modèle Payslip = bulletin de salaire
-// model Payslip {
-//   id              Int       @id @default(autoincrement())
-//   employeeId      Int
-//   payRunId        Int
-//   baseSalary      Decimal   @db.Decimal(10,2)
-//   bonus           Decimal   @db.Decimal(10,2) @default(0)
-//   deductions      Decimal   @db.Decimal(10,2) @default(0)
-//   netSalary       Decimal   @db.Decimal(10,2)
-//   generatedPdfUrl String?   // chemin ou URL du PDF généré
 
-//   // relations
-//   employee Employee @relation(fields: [employeeId], references: [id])
-//   payRun   PayRun   @relation(fields: [payRunId],   references: [id])
-
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-// }
 
 model Payslip {
   id            Int      @id @default(autoincrement())

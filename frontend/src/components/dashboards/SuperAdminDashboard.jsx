@@ -20,14 +20,29 @@ import {
   Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { api } from "../../lib/api";
 import CompanyForm from "../forms/CompanyForm";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import EmployeeForm from "../forms/EmployeeForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 
 const SuperAdminDashboard = () => {
   const queryClient = useQueryClient();
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   // Fetch companies from API
   const {
@@ -42,6 +57,19 @@ const SuperAdminDashboard = () => {
     },
   });
 
+  // Fetch employees from API for SUPER_ADMIN (no companyId filter)
+  const {
+    data: employees = [],
+    isLoading: employeesLoading,
+    error: employeesError,
+  } = useQuery({
+    queryKey: ["employees"],
+    queryFn: async () => {
+      const response = await api.get("/employees");
+      return response.data || [];
+    },
+  });
+
 
   const stats = [
     {
@@ -50,6 +78,13 @@ const SuperAdminDashboard = () => {
       change: "+2 this month",
       icon: Building2,
       color: "text-primary",
+    },
+    {
+      title: "Total Employees",
+      value: employees.length,
+      change: "+5 this month",
+      icon: Users,
+      color: "text-success",
     },
     {
       title: "Active Users",
@@ -107,6 +142,39 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      const response = await api.delete(`/employees/${employeeId}`);
+      if (response.error) {
+        console.error("Error deleting employee:", response.error);
+        // You could show a toast here
+      } else {
+        // Invalidate and refetch employees
+        queryClient.invalidateQueries({ queryKey: ["employees"] });
+      }
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+    }
+  };
+
+  // Employee handlers for SUPER_ADMIN
+  const handleCreateEmployee = () => {
+    setSelectedEmployee(null);
+    setShowEmployeeForm(true);
+  };
+
+  const handleEditEmployee = (employee) => {
+    setSelectedEmployee(employee);
+    setShowEmployeeForm(true);
+  };
+
+  const handleEmployeeSubmit = () => {
+    // Invalidate and refetch employees
+    queryClient.invalidateQueries({ queryKey: ["employees"] });
+    setShowEmployeeForm(false);
+    setSelectedEmployee(null);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -120,6 +188,10 @@ const SuperAdminDashboard = () => {
           </p>
         </div>
         <div className="flex space-x-3">
+          <Button onClick={handleCreateEmployee} variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Employee
+          </Button>
           <Button
             onClick={handleCreateCompany}
             className="bg-gradient-to-r from-primary to-accent"
@@ -154,8 +226,14 @@ const SuperAdminDashboard = () => {
         ))}
       </div>
 
-      {/* Main Content */}
-      <div className="space-y-6">
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="companies" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="companies">Companies</TabsTrigger>
+          <TabsTrigger value="employees">Employees</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="companies" className="space-y-6">
           <Card className="animate-fade-in">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -238,7 +316,123 @@ const SuperAdminDashboard = () => {
               )}
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
+
+        <TabsContent value="employees" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-xl">Employees</CardTitle>
+                  <CardDescription>
+                    Manage all employees across all companies
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm">
+                  {employees.length} Total
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {employeesLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-pulse text-muted-foreground">
+                    Loading employees...
+                  </div>
+                </div>
+              ) : employeesError ? (
+                <div className="text-center py-8">
+                  <div className="text-destructive">
+                    Error loading employees
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {employees.map((employee) => (
+                    <div
+                      key={employee.id}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                          {employee.name
+                            .split(" ")
+                            .map((n) => n.charAt(0))
+                            .join("")
+                            .toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{employee.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {employee.email}
+                          </p>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <Badge
+                              variant={
+                                employee.isActive ? "default" : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {employee.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Joined{" "}
+                              {new Date(
+                                employee.createdAt
+                              ).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditEmployee(employee)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action ne peut pas être annulée. Cela supprimera définitivement l'employé {employee.name}.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteEmployee(employee.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Company Form Dialog */}
       <Dialog open={showCompanyForm} onOpenChange={setShowCompanyForm}>
@@ -252,6 +446,25 @@ const SuperAdminDashboard = () => {
             company={selectedCompany}
             onSubmit={handleCompanySubmit}
             onCancel={() => setShowCompanyForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Employee Form Dialog */}
+      <Dialog open={showEmployeeForm} onOpenChange={setShowEmployeeForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedEmployee ? "Edit Employee" : "Add New Employee"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedEmployee ? "Update the employee's information." : "Fill in the details to add a new employee to the system."}
+            </DialogDescription>
+          </DialogHeader>
+          <EmployeeForm
+            employee={selectedEmployee}
+            onSubmit={handleEmployeeSubmit}
+            onCancel={() => setShowEmployeeForm(false)}
           />
         </DialogContent>
       </Dialog>

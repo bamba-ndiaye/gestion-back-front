@@ -22,6 +22,17 @@ import { api } from '../../lib/api';
 import EmployeeForm from '../forms/EmployeeForm';
 import PayrollForm from '../forms/PayrollForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../ui/alert-dialog";
 import { useAuth } from '../../context/AuthContext';
 
 const AdministratorDashboard = () => {
@@ -124,6 +135,21 @@ const AdministratorDashboard = () => {
     queryClient.invalidateQueries({ queryKey: user?.role === 'SUPER_ADMIN' ? (companyIdFromUrl ? ['employees', companyIdFromUrl] : ['employees']) : ['employees', user?.companyId] });
     setShowEmployeeForm(false);
     setSelectedEmployee(null);
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    try {
+      const response = await api.delete(`/employees/${employeeId}`);
+      if (response.error) {
+        console.error("Error deleting employee:", response.error);
+        // You could show a toast here
+      } else {
+        // Invalidate and refetch employees
+        queryClient.invalidateQueries({ queryKey: user?.role === 'SUPER_ADMIN' ? (companyIdFromUrl ? ['employees', companyIdFromUrl] : ['employees']) : ['employees', user?.companyId] });
+      }
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+    }
   };
 
   const handleLaunchPayroll = () => {
@@ -250,13 +276,34 @@ const AdministratorDashboard = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action ne peut pas être annulée. Cela supprimera définitivement l'employé {employee.name}.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteEmployee(employee.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Supprimer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}

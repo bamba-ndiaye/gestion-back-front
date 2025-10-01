@@ -19,30 +19,38 @@ export async function createCompany(req: Request, res: Response) {
 export async function listCompanies(req: AuthRequest, res: Response) {
   const user = req.user!;
 
-  let companies;
-  if (user.role === 'SUPER_ADMIN') {
-    // Super Admin voit toutes les compagnies
-    companies = await companyService.getCompanies();
-  } else if (user.role === 'ADMIN') {
-    // Admin ne voit que sa propre compagnie
-    if (!user.companyId) {
-      return res.status(403).json({ error: 'Administrator must be assigned to a company' });
+  try {
+    let companies;
+    if (user.role === 'SUPER_ADMIN') {
+      // Super Admin voit toutes les compagnies
+      companies = await companyService.getCompanies();
+    } else if (user.role === 'ADMIN') {
+      // Admin ne voit que sa propre compagnie
+      if (!user.companyId) {
+        return res.status(403).json({ error: 'Administrator must be assigned to a company' });
+      }
+      const company = await companyService.getCompanyById(user.companyId);
+      companies = company ? [company] : [];
+    } else {
+      // Autres rôles n'ont pas accès aux compagnies
+      return res.status(403).json({ error: 'Insufficient permissions to view companies' });
     }
-    const company = await companyService.getCompanyById(user.companyId);
-    companies = company ? [company] : [];
-  } else {
-    // Autres rôles n'ont pas accès aux compagnies
-    return res.status(403).json({ error: 'Insufficient permissions to view companies' });
-  }
 
-  res.json(companies);
+    res.json(companies);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to list companies' });
+  }
 }
 
 export async function getCompany(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const company = await companyService.getCompanyById(id);
-  if (!company) return res.status(404).json({ message: 'Company not found' });
-  res.json(company);
+  try {
+    const company = await companyService.getCompanyById(id);
+    if (!company) return res.status(404).json({ message: 'Company not found' });
+    res.json(company);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get company' });
+  }
 }
 
 export async function updateCompany(req: Request, res: Response) {

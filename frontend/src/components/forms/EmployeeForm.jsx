@@ -14,6 +14,8 @@ const EmployeeForm = ({ employee, companyId, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     firstName: employee?.firstName || '',
     lastName: employee?.lastName || '',
+    telephone: employee?.telephone || '',
+    service: employee?. service || '',
     email: employee?.email || '',
     ...(user?.role === 'SUPER_ADMIN' && { companyId: employee?.companyId || '' })
   });
@@ -52,7 +54,7 @@ const EmployeeForm = ({ employee, companyId, onSubmit, onCancel }) => {
     e.preventDefault();
 
     // Validation
-    const requiredFields = ['firstName', 'lastName', 'email'];
+    const requiredFields = ['firstName', 'lastName', 'telephone', 'service', 'email'];
     if (user?.role === 'SUPER_ADMIN') {
       requiredFields.push('companyId');
     }
@@ -92,6 +94,8 @@ const EmployeeForm = ({ employee, companyId, onSubmit, onCancel }) => {
       const employeeData = {
         name: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
+        telephone: formData.telephone,
+        service: formData.service,
         ...(companyId !== undefined && { companyId })
       };
 
@@ -156,6 +160,28 @@ const EmployeeForm = ({ employee, companyId, onSubmit, onCancel }) => {
       </div>
 
       {/* Contact Information */}
+      <div className="space-y-2">
+        <Label htmlFor="telephone">Telephone *</Label>
+        <Input
+          id="telephone"
+          value={formData.telephone}
+          onChange={(e) => handleInputChange('telephone', e.target.value)}
+          placeholder="Enter telephone number"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="service">Service *</Label>
+        <Input
+          id="service"
+          value={formData.service}
+          onChange={(e) => handleInputChange('service', e.target.value)}
+          placeholder="Enter service"
+          required
+        />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="email">Email *</Label>
         <Input

@@ -5,13 +5,15 @@ const prisma = new PrismaClient();
 export async function createEmployee(
   name: string,
   email: string,
+  telephone: string,
+  service: string,
   companyId: number
 ) {
   try {
     return prisma.employee.create({
-      data: { name, email, companyId },
-    });
+      data: { name, email, telephone, service, companyId },
 
+    });
     //   return await prisma.employee.create({ data });
   } catch (err: any) {
     if (err.code === "P2002" || err.message?.includes("Unique constraint")) {

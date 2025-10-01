@@ -1,17 +1,23 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import * as service from './employee.service';
+import * as employeeService from './employee.service';
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function createEmployee(req: AuthRequest, res: Response) {
-  const { name, email, companyId } = req.body;
+  const { name, email, telephone, service, companyId } = req.body;
   const user = req.user!;
 
   try {
     // Validation des données d'entrée
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'Name is required and must be a non-empty string' });
+    }
+    if (!telephone || typeof telephone !== 'string' || telephone.trim().length === 0) {
+      return res.status(400).json({ error: 'Telephone is required and must be a non-empty string' });
+    }
+    if (!service || typeof service !== 'string' || service.trim().length === 0) {
+      return res.status(400).json({ error: 'Service is required and must be a non-empty string' });
     }
     if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Valid email is required' });
@@ -46,7 +52,7 @@ export async function createEmployee(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: 'Invalid company ID' });
     }
 
-    const employee = await service.createEmployee(name, email, assignedCompanyId);
+    const employee = await employeeService.createEmployee(name, email, telephone, service, assignedCompanyId);
     res.status(201).json(employee);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -62,34 +68,38 @@ export async function listEmployees(req: AuthRequest, res: Response) {
   const { isActive, companyId } = req.query;
   const user = req.user!;
 
-  const filter: { isActive?: boolean; companyId?: number } = {};
+  try {
+    const filter: { isActive?: boolean; companyId?: number } = {};
 
-  if (isActive !== undefined) filter.isActive = isActive === 'true';
+    if (isActive !== undefined) filter.isActive = isActive === 'true';
 
-  // Filtrage basé sur le rôle
-  if (user.role === 'SUPER_ADMIN') {
-    // Super Admin voit tout
-    if (companyId !== undefined) filter.companyId = parseInt(companyId as string, 10);
-  } else if (user.role === 'ADMIN') {
-    // Admin ne voit que les employés de sa compagnie
-    if (!user.companyId) {
-      return res.status(403).json({ error: 'Administrator must be assigned to a company' });
+    // Filtrage basé sur le rôle
+    if (user.role === 'SUPER_ADMIN') {
+      // Super Admin voit tout
+      if (companyId !== undefined) filter.companyId = parseInt(companyId as string, 10);
+    } else if (user.role === 'ADMIN') {
+      // Admin ne voit que les employés de sa compagnie
+      if (!user.companyId) {
+        return res.status(403).json({ error: 'Administrator must be assigned to a company' });
+      }
+      // Forcer le filtrage par la compagnie de l'admin
+      filter.companyId = user.companyId;
+    } else {
+      // Autres rôles (CASHIER) n'ont pas accès aux employés
+      return res.status(403).json({ error: 'Insufficient permissions to view employees' });
     }
-    // Forcer le filtrage par la compagnie de l'admin
-    filter.companyId = user.companyId;
-  } else {
-    // Autres rôles (CASHIER) n'ont pas accès aux employés
-    return res.status(403).json({ error: 'Insufficient permissions to view employees' });
-  }
 
-  const employees = await service.getEmployees(filter);
-  res.json(employees);
+    const employees = await employeeService.getEmployees(filter);
+    res.json(employees);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to list employees' });
+  }
 }
 
 
 export async function getEmployee(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const employee = await service.getEmployeeById(id);
+  const employee = await employeeService.getEmployeeById(id);
   if (!employee) return res.status(404).json({ message: 'Employee not found' });
   res.json(employee);
 }
@@ -97,7 +107,7 @@ export async function getEmployee(req: Request, res: Response) {
 export async function updateEmployeeController(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
   try {
-    const employee = await service.updateEmployee(id, req.body);
+    const employee = await employeeService.updateEmployee(id, req.body);
     res.json(employee);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -107,9 +117,10 @@ export async function updateEmployeeController(req: Request, res: Response) {
 export async function deleteEmployeeController(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
   try {
-    await service.deleteEmployee(id);
+    await employeeService.deleteEmployee(id);
     res.json({ message: 'Employee deleted' });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 }
+
