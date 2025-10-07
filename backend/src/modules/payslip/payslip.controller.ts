@@ -45,3 +45,16 @@ export async function getEmployeePayslips(req: Request, res: Response) {
     res.status(500).json({ error: err.message });
   }
 }
+
+// Mettre à jour le paiement d'un bulletin
+export async function updatePayment(req: Request, res: Response) {
+  const payslipId = Number(req.params.payslipId);
+  const { amountPaid } = req.body;
+
+  try {
+    const payslip = await service.updatePayslipPayment(payslipId, amountPaid);
+    res.json(payslip);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}

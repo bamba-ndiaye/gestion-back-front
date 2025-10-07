@@ -15,13 +15,16 @@ import {
   Trash2,
   PlayCircle,
   CheckCircle,
-  CreditCard
+  CreditCard,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import EmployeeForm from '../forms/EmployeeForm';
 import PayrollForm from '../forms/PayrollForm';
+import AttendanceForm from '../forms/AttendanceForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import {
   AlertDialog,
@@ -43,12 +46,14 @@ const AdministratorDashboard = () => {
   const companyIdFromUrl = searchParams.get('companyId');
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [showPayrollForm, setShowPayrollForm] = useState(false);
+  const [showAttendanceForm, setShowAttendanceForm] = useState(false);
   const [showEmployeeDetailsModal, setShowEmployeeDetailsModal] = useState(false);
   const [showCompanyDetailsModal, setShowCompanyDetailsModal] = useState(false);
   const [showEmployeePaymentsModal, setShowEmployeePaymentsModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedEmployeeForDetails, setSelectedEmployeeForDetails] = useState(null);
   const [selectedEmployeeForPayments, setSelectedEmployeeForPayments] = useState(null);
+  const [selectedEmployeeForAttendance, setSelectedEmployeeForAttendance] = useState(null);
 
   // Fetch employees from API
   const effectiveCompanyId = user?.role === 'SUPER_ADMIN' && companyIdFromUrl ? companyIdFromUrl : user?.companyId;
@@ -115,6 +120,22 @@ const AdministratorDashboard = () => {
     },
   });
 
+  // Fetch attendance data for the current month
+  const { data: attendanceData = [] } = useQuery({
+    queryKey: ['company-attendance', effectiveCompanyId],
+    queryFn: async () => {
+      if (!effectiveCompanyId) return [];
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      const endOfMonth = new Date();
+      endOfMonth.setMonth(endOfMonth.getMonth() + 1, 0);
+
+      const response = await api.get(`/attendance/company?startDate=${startOfMonth.toISOString().split('T')[0]}&endDate=${endOfMonth.toISOString().split('T')[0]}`);
+      return response.data || [];
+    },
+    enabled: !!effectiveCompanyId
+  });
+
   const stats = [
     {
       title: 'Total Employees',
@@ -122,6 +143,13 @@ const AdministratorDashboard = () => {
       change: '+2 this month',
       icon: Users,
       color: 'text-primary'
+    },
+    {
+      title: 'Present Today',
+      value: attendanceData.filter(a => a.status === 'PRESENT' && a.date === new Date().toISOString().split('T')[0]).length,
+      change: 'Checked in',
+      icon: UserCheck,
+      color: 'text-success'
     },
     {
       title: 'Monthly Payroll',
@@ -136,13 +164,6 @@ const AdministratorDashboard = () => {
       change: 'Awaiting validation',
       icon: Calendar,
       color: 'text-warning'
-    },
-    {
-      title: 'Validated Cycles',
-      value: payrollCycles.filter(c => c.status === 'VALIDATED').length,
-      change: 'Ready for payment',
-      icon: TrendingUp,
-      color: 'text-success'
     }
   ];
 
@@ -190,6 +211,17 @@ const AdministratorDashboard = () => {
 
   const handleLaunchPayroll = () => {
     setShowPayrollForm(true);
+  };
+
+  const handleRecordAttendance = (employee) => {
+    setSelectedEmployeeForAttendance(employee);
+    setShowAttendanceForm(true);
+  };
+
+  const handleAttendanceSubmit = () => {
+    queryClient.invalidateQueries({ queryKey: ['company-attendance', effectiveCompanyId] });
+    setShowAttendanceForm(false);
+    setSelectedEmployeeForAttendance(null);
   };
 
   const handleValidatePayRun = async (payRunId) => {
@@ -276,8 +308,9 @@ const AdministratorDashboard = () => {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="employees" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="payroll">Payroll Cycles</TabsTrigger>
         </TabsList>
 
@@ -389,6 +422,73 @@ const AdministratorDashboard = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="attendance" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-xl">Attendance Records</CardTitle>
+                  <CardDescription>
+                    Track employee attendance and working hours
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setShowAttendanceForm(true)} variant="outline">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Record Attendance
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {attendanceData.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <div className="text-muted-foreground">No attendance records found for this month</div>
+                  </div>
+                ) : (
+                  attendanceData.slice(0, 10).map((record) => (
+                    <div
+                      key={`${record.employeeId}-${record.date}`}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                          {record.employee.name.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{record.employee.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(record.date).toLocaleDateString()}
+                          </p>
+                          <div className="flex items-center space-x-4 mt-1">
+                            <span className="text-xs">
+                              Check In: {record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : 'N/A'}
+                            </span>
+                            <span className="text-xs">
+                              Check Out: {record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={record.status === 'PRESENT' ? 'default' : 'secondary'} className="text-xs">
+                          {record.status}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {record.checkIn && record.checkOut ?
+                            `${Math.round((new Date(record.checkOut).getTime() - new Date(record.checkIn).getTime()) / (1000 * 60 * 60) * 10) / 10}h worked` :
+                            'No hours recorded'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="payroll" className="space-y-6">
           <Card>
             <CardHeader>
@@ -486,8 +586,42 @@ const AdministratorDashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Launch New Payroll Cycle</DialogTitle>
+            <DialogDescription>
+              Create a new payroll cycle and select employees to include.
+            </DialogDescription>
+          </DialogHeader>
+          <EmployeeForm
+            employee={selectedEmployee}
+            companyId={effectiveCompanyId}
+            onSubmit={handleEmployeeSubmit}
+            onCancel={() => setShowEmployeeForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAttendanceForm} onOpenChange={setShowAttendanceForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Record Attendance</DialogTitle>
+            <DialogDescription>
+              Record check-in, check-out, or update attendance status for an employee
+            </DialogDescription>
+          </DialogHeader>
+          <AttendanceForm
+            employeeId={selectedEmployeeForAttendance?.id}
+            onSubmit={handleAttendanceSubmit}
+            onCancel={() => setShowAttendanceForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPayrollForm} onOpenChange={setShowPayrollForm}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Launch New Payroll Cycle</DialogTitle>
           </DialogHeader>
           <PayrollForm
+            companyId={effectiveCompanyId}
             onSubmit={() => setShowPayrollForm(false)}
             onCancel={() => setShowPayrollForm(false)}
           />
@@ -500,7 +634,7 @@ const AdministratorDashboard = () => {
           <DialogHeader>
             <DialogTitle>Détails de l'employé</DialogTitle>
             <DialogDescription>
-              Informations complètes sur l'employé
+              Informations complètes sur l'employé sélectionné
             </DialogDescription>
           </DialogHeader>
           {employeeDetails ? (
@@ -552,7 +686,7 @@ const AdministratorDashboard = () => {
           <DialogHeader>
             <DialogTitle>Détails de l'entreprise</DialogTitle>
             <DialogDescription>
-              Informations complètes sur l'entreprise
+              Informations complètes sur l'entreprise sélectionnée
             </DialogDescription>
           </DialogHeader>
           {company ? (
@@ -600,7 +734,7 @@ const AdministratorDashboard = () => {
           <DialogHeader>
             <DialogTitle>Paiements de {selectedEmployeeForPayments?.name}</DialogTitle>
             <DialogDescription>
-              Historique des bulletins de salaire et paiements
+              Historique complet des bulletins de salaire et statuts de paiement
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -640,6 +774,24 @@ const AdministratorDashboard = () => {
                       <p className="text-sm text-muted-foreground">
                         Mis à jour: {new Date(payslip.updatedAt).toLocaleDateString()}
                       </p>
+                      {payslip.amountPaid < payslip.netSalary && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await api.put(`/payslips/${payslip.id}/payment`, {
+                                amountPaid: payslip.netSalary
+                              });
+                              queryClient.invalidateQueries({ queryKey: ['employee-payslips', selectedEmployeeForPayments?.id] });
+                            } catch (error) {
+                              console.error('Error processing payment:', error);
+                            }
+                          }}
+                        >
+                          Payer
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

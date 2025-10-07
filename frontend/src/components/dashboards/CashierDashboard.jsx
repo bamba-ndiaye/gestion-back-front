@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { mockPayslips, mockPayments, mockEmployees } from '../../data/mockData';
 import PaymentForm from '../forms/PaymentForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { useAuth } from '../../context/AuthContext';
 
 const CashierDashboard = () => {
@@ -273,6 +273,9 @@ const CashierDashboard = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>
+              Process payment for the selected payslip and record transaction details.
+            </DialogDescription>
           </DialogHeader>
           <PaymentForm 
             payslip={selectedPayslip}

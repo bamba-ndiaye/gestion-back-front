@@ -1,9 +1,14 @@
 import { Router } from 'express';
-import { registerUser } from './user.service';
+import { registerUser, getAllUsers } from './user.service';
+import { authenticateToken, requireSuperAdmin } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-router.post('/', async (req, res) => {
+// Appliquer l'authentification à toutes les routes
+router.use(authenticateToken);
+
+// Créer un utilisateur (Super Admin seulement)
+router.post('/', requireSuperAdmin, async (req, res) => {
   const {userName, email, password, role } = req.body;
   try {
    const user = await registerUser({ name: userName, email, password, role });
@@ -13,5 +18,14 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Récupérer tous les utilisateurs (Super Admin seulement)
+router.get('/', requireSuperAdmin, async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json(users);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 export default router;

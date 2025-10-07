@@ -70,33 +70,46 @@ const SuperAdminDashboard = () => {
     },
   });
 
+  // Fetch users from API for SUPER_ADMIN
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const response = await api.get("/users");
+      return response.data || [];
+    },
+  });
+
 
   const stats = [
     {
       title: "Total Companies",
       value: companies.length,
-      change: "+2 this month",
+      change: `${companies.filter(c => c.isActive).length} active`,
       icon: Building2,
       color: "text-primary",
     },
     {
       title: "Total Employees",
       value: employees.length,
-      change: "+5 this month",
+      change: `${employees.filter(e => e.isActive).length} active`,
       icon: Users,
       color: "text-success",
     },
     {
       title: "Active Users",
-      value: "47",
-      change: "+12% from last month",
+      value: users.length,
+      change: "System users",
       icon: Users,
       color: "text-warning",
     },
     {
       title: "System Health",
       value: "99.9%",
-      change: "All systems operational",
+      change: `${companies.length + employees.length + users.length} total records`,
       icon: TrendingUp,
       color: "text-success",
     },
@@ -446,7 +459,7 @@ const SuperAdminDashboard = () => {
               {selectedCompany ? "Edit Company" : "Create New Company"}
             </DialogTitle>
             <DialogDescription>
-              {selectedCompany ? "Update the company information." : "Fill in the details to create a new company."}
+              {selectedCompany ? "Update the company information and settings." : "Fill in the details to create a new company in the system."}
             </DialogDescription>
           </DialogHeader>
           <CompanyForm
@@ -465,7 +478,7 @@ const SuperAdminDashboard = () => {
               {selectedEmployee ? "Edit Employee" : "Add New Employee"}
             </DialogTitle>
             <DialogDescription>
-              {selectedEmployee ? "Update the employee's information." : "Fill in the details to add a new employee to the system."}
+              {selectedEmployee ? "Update the employee's information and salary details." : "Fill in the details to add a new employee to the system."}
             </DialogDescription>
           </DialogHeader>
           <EmployeeForm

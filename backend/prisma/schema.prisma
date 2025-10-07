@@ -41,17 +41,21 @@ model Company {
   users     User[]
 }
 model Employee {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  telephone String?
-  service   String?
-  isActive  Boolean  @default(true)
-  companyId Int
-  company   Company  @relation(fields: [companyId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  payslips  Payslip[]
+   id        Int      @id @default(autoincrement())
+   name      String
+   email     String   @unique
+   telephone String?
+   service   String?
+   baseSalary Float    @default(0)
+   bonus     Float    @default(0)
+   deductions Float   @default(0)
+   isActive  Boolean  @default(true)
+   companyId Int
+   company   Company  @relation(fields: [companyId], references: [id])
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+   payslips  Payslip[]
+   attendances Attendance[]
 }
 
 // ---- Sprint 3 : Gestion de paie ----
@@ -82,19 +86,44 @@ model PayRun {
 
 
 model Payslip {
-  id            Int      @id @default(autoincrement())
-  employeeId    Int
-  payRunId      Int
-  baseSalary    Float
-  bonus         Float
-  deductions    Float
-  netSalary     Float
-  amountPaid    Float?    @default(0)    // <-- AJOUTER
-  generatedPdfUrl String?
-  receiptPdfUrl   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+   id            Int      @id @default(autoincrement())
+   employeeId    Int
+   payRunId      Int
+   baseSalary    Float
+   bonus         Float
+   deductions    Float
+   netSalary     Float
+   amountPaid    Float?    @default(0)    // <-- AJOUTER
+   generatedPdfUrl String?
+   receiptPdfUrl   String?
+   createdAt     DateTime @default(now())
+   updatedAt     DateTime @updatedAt
 
-  employee      Employee @relation(fields: [employeeId], references: [id])
-  payRun        PayRun   @relation(fields: [payRunId], references: [id])
+   employee      Employee @relation(fields: [employeeId], references: [id])
+   payRun        PayRun   @relation(fields: [payRunId], references: [id])
+}
+
+// ---- Sprint 4 : Gestion du pointage ----
+enum AttendanceStatus {
+   PRESENT
+   ABSENT
+   LATE
+   EARLY_DEPARTURE
+   HALF_DAY
+}
+
+model Attendance {
+   id         Int               @id @default(autoincrement())
+   employeeId Int
+   date       DateTime          // date du pointage (YYYY-MM-DD)
+   checkIn    DateTime?         // heure d'arrivée
+   checkOut   DateTime?         // heure de départ
+   status     AttendanceStatus  @default(PRESENT)
+   notes      String?           // commentaires optionnels
+   createdAt  DateTime          @default(now())
+   updatedAt  DateTime          @updatedAt
+
+   employee   Employee          @relation(fields: [employeeId], references: [id])
+
+   @@unique([employeeId, date]) // un pointage par employé et par jour
 }

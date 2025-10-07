@@ -1,73 +1,58 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { 
-  FileText, 
-  Download,
-  DollarSign,
-  Calendar,
-  TrendingUp,
-  Eye,
-  User
-} from 'lucide-react';
-import { mockPayslips, mockEmployees, mockPayments } from '../../data/mockData';
+import { FileText, DollarSign, Calendar, Download } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../lib/api';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
-  const [employee] = useState(mockEmployees.find(emp => emp.email === user.email));
-  const [payslips] = useState(mockPayslips.filter(p => p.employeeId === employee?.id));
-  const [payments] = useState(mockPayments.filter(p => payslips.some(ps => ps.id === p.payslipId)));
 
-  const currentYear = new Date().getFullYear();
-  const yearlyEarnings = payslips
-    .filter(p => new Date(p.paidAt).getFullYear() === currentYear)
-    .reduce((sum, p) => sum + p.netPay, 0);
+  // Fetch employee payslips
+  const { data: payslips = [], isLoading, error } = useQuery({
+    queryKey: ['employee-payslips', user?.id],
+    queryFn: async () => {
+      const response = await api.get(`/payslips/employee/${user.id}`);
+      return response.data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Calculate total earnings
+  const totalEarnings = payslips.reduce((sum, payslip) => sum + (payslip.netSalary || 0), 0);
+  const paidAmount = payslips.reduce((sum, payslip) => sum + (payslip.amountPaid || 0), 0);
 
   const stats = [
     {
-      title: 'This Month\'s Pay',
-      value: `$${payslips[payslips.length - 1]?.netPay?.toLocaleString() || '0'}`,
-      change: 'Last payment',
-      icon: DollarSign,
+      title: 'Total Payslips',
+      value: payslips.length,
+      change: 'All time',
+      icon: FileText,
       color: 'text-primary'
     },
     {
-      title: 'Yearly Earnings',
-      value: `$${yearlyEarnings.toLocaleString()}`,
-      change: `${currentYear} total`,
-      icon: TrendingUp,
+      title: 'Total Earnings',
+      value: `$${totalEarnings.toLocaleString()}`,
+      change: 'Gross salary',
+      icon: DollarSign,
       color: 'text-success'
     },
     {
-      title: 'Payslips Available',
-      value: payslips.length,
-      change: 'Ready to view',
-      icon: FileText,
-      color: 'text-accent'
+      title: 'Amount Paid',
+      value: `$${paidAmount.toLocaleString()}`,
+      change: `${((paidAmount / totalEarnings) * 100 || 0).toFixed(1)}% received`,
+      icon: Calendar,
+      color: 'text-warning'
     },
     {
-      title: 'Annual Salary',
-      value: `$${employee?.salary?.toLocaleString() || '0'}`,
-      change: 'Gross annual',
-      icon: Calendar,
+      title: 'Pending Payment',
+      value: `$${(totalEarnings - paidAmount).toLocaleString()}`,
+      change: 'Outstanding',
+      icon: Download,
       color: 'text-muted-foreground'
     }
   ];
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return 'text-success bg-success/10';
-      case 'pending': return 'text-warning bg-warning/10';
-      case 'paid': return 'text-primary bg-primary/10';
-      default: return 'text-muted-foreground bg-muted';
-    }
-  };
-
-  const getPaymentInfo = (payslipId) => {
-    return payments.find(p => p.payslipId === payslipId);
-  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -78,49 +63,10 @@ const EmployeeDashboard = () => {
             Employee Dashboard
           </h1>
           <p className="text-muted-foreground mt-2">
-            Welcome back, {employee?.firstName} {employee?.lastName}
+            View your payslips and payment history
           </p>
         </div>
       </div>
-
-      {/* Employee Info Card */}
-      <Card className="animate-scale-in">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center space-x-3">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground text-lg font-medium">
-              {employee?.firstName?.charAt(0)}{employee?.lastName?.charAt(0)}
-            </div>
-            <div>
-              <h2>{employee?.firstName} {employee?.lastName}</h2>
-              <p className="text-sm text-muted-foreground font-normal">
-                {employee?.position} • {employee?.department}
-              </p>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{employee?.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Department</p>
-              <p className="font-medium">{employee?.department}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Hire Date</p>
-              <p className="font-medium">{new Date(employee?.hireDate).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Badge className={getStatusColor('approved')}>
-                {employee?.status}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -149,21 +95,26 @@ const EmployeeDashboard = () => {
             <div>
               <CardTitle className="text-xl">My Payslips</CardTitle>
               <CardDescription>
-                View and download your payslip history
+                Your salary slips and payment records
               </CardDescription>
             </div>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Download All
-            </Button>
+            <Badge variant="secondary" className="text-sm">
+              {payslips.length} Total
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {payslips.map((payslip) => {
-              const paymentInfo = getPaymentInfo(payslip.id);
-              
-              return (
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-pulse text-muted-foreground">Loading payslips...</div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="text-destructive">Error loading payslips</div>
+            </div>
+          ) : payslips.length > 0 ? (
+            <div className="space-y-4">
+              {payslips.map((payslip) => (
                 <div
                   key={payslip.id}
                   className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
@@ -173,41 +124,46 @@ const EmployeeDashboard = () => {
                       <FileText className="h-6 w-6 text-primary-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">
-                        Payslip #{payslip.id}
-                      </h3>
+                      <h3 className="font-semibold">Payslip #{payslip.id}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Net Pay: ${payslip.netPay.toLocaleString()} • Gross Pay: ${payslip.grossPay.toLocaleString()}
+                        {payslip.payRun ? `${payslip.payRun.month}/${payslip.payRun.year}` : 'N/A'}
                       </p>
                       <div className="flex items-center space-x-4 mt-1">
-                        <Badge className={getStatusColor(payslip.status)}>
-                          {payslip.status}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {paymentInfo ? `Paid: ${new Date(paymentInfo.paymentDate).toLocaleDateString()}` : 'Payment pending'}
+                        <span className="text-sm">
+                          Net Salary: ${payslip.netSalary?.toLocaleString() || '0'}
                         </span>
-                        {paymentInfo && (
-                          <span className="text-xs text-muted-foreground">
-                            Ref: {paymentInfo.reference}
-                          </span>
-                        )}
+                        <span className="text-sm">
+                          Paid: ${payslip.amountPaid?.toLocaleString() || '0'}
+                        </span>
+                        <Badge variant={payslip.amountPaid >= payslip.netSalary ? "default" : "secondary"} className="text-xs">
+                          {payslip.amountPaid >= payslip.netSalary ? 'Fully Paid' : 'Partial Payment'}
+                        </Badge>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">
+                      Created: {new Date(payslip.createdAt).toLocaleDateString()}
+                    </p>
+                    {payslip.generatedPdfUrl && (
+                      <a
+                        href={`http://localhost:3000${payslip.generatedPdfUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-sm"
+                      >
+                        Download PDF
+                      </a>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">No payslips found</div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

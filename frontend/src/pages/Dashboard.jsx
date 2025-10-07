@@ -10,13 +10,13 @@ const Dashboard = () => {
 
   const renderDashboard = () => {
     switch (user?.role) {
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return <SuperAdminDashboard />;
-      case 'administrator':
+      case 'ADMIN':
         return <AdministratorDashboard />;
-      case 'cashier':
+      case 'CASHIER':
         return <CashierDashboard />;
-      case 'employee':
+      case 'EMPLOYEE':
         return <EmployeeDashboard />;
       default:
         return (

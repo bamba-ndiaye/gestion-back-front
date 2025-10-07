@@ -5,24 +5,59 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { mockEmployees, payPeriodTypes } from '../../data/mockData';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { payPeriodTypes } from '../../data/mockData';
 import { useToast } from '../../hooks/use-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api';
 
-const PayrollForm = ({ onSubmit, onCancel }) => {
+const PayrollForm = ({ onSubmit, onCancel, companyId }) => {
   const { user } = useAuth();
-  const employees = mockEmployees.filter(emp => emp.companyId === user.companyId && emp.status === 'active');
-  
+
+  const currentCompanyId = companyId || user?.companyId;
+
+  // Fetch real employees
+  const { data: employees = [], isLoading } = useQuery({
+    queryKey: ['employees', currentCompanyId],
+    queryFn: async () => {
+      const response = await api.get(`/employees?companyId=${currentCompanyId}`);
+      return response.data || [];
+    },
+    enabled: !!currentCompanyId
+  });
+
+  const activeEmployees = employees.filter(emp => emp.isActive);
+
   const [formData, setFormData] = useState({
     name: '',
     startDate: '',
     endDate: '',
     payDate: '',
     description: '',
-    selectedEmployees: employees.map(emp => emp.id), // Select all by default
+    selectionMode: 'all', // 'all' or 'specific'
+    selectedEmployees: [], // Will be set when employees load
     payPeriod: 'monthly'
   });
+
+
+  // Update selectedEmployees when employees load or selection mode changes
+  React.useEffect(() => {
+    if (activeEmployees.length > 0) {
+      if (formData.selectionMode === 'all') {
+        setFormData(prev => ({
+          ...prev,
+          selectedEmployees: activeEmployees.map(emp => emp.id)
+        }));
+      } else if (formData.selectionMode === 'specific' && formData.selectedEmployees.length === 0) {
+        // Keep empty for specific selection
+        setFormData(prev => ({
+          ...prev,
+          selectedEmployees: []
+        }));
+      }
+    }
+  }, [activeEmployees, formData.selectionMode]);
   
   const { toast } = useToast();
 
@@ -33,38 +68,41 @@ const PayrollForm = ({ onSubmit, onCancel }) => {
     }));
   };
 
-  const handleEmployeeToggle = (employeeId, checked) => {
+  const handleSelectionModeChange = (mode) => {
     setFormData(prev => ({
       ...prev,
-      selectedEmployees: checked 
-        ? [...prev.selectedEmployees, employeeId]
-        : prev.selectedEmployees.filter(id => id !== employeeId)
+      selectionMode: mode,
+      selectedEmployees: mode === 'all' ? activeEmployees.map(emp => emp.id) : []
     }));
   };
 
-  const toggleAllEmployees = (checked) => {
-    setFormData(prev => ({
-      ...prev,
-      selectedEmployees: checked ? employees.map(emp => emp.id) : []
-    }));
+  const handleEmployeeToggle = (employeeId, checked) => {
+    if (formData.selectionMode === 'specific') {
+      setFormData(prev => ({
+        ...prev,
+        selectedEmployees: checked
+          ? [...prev.selectedEmployees, employeeId]
+          : prev.selectedEmployees.filter(id => id !== employeeId)
+      }));
+    }
   };
 
   const calculateTotalAmount = () => {
-    const selectedEmps = employees.filter(emp => formData.selectedEmployees.includes(emp.id));
+    const selectedEmps = activeEmployees.filter(emp => formData.selectedEmployees.includes(emp.id));
     return selectedEmps.reduce((total, emp) => {
       // Simple calculation based on pay period
       let periodMultiplier = 1;
       if (formData.payPeriod === 'weekly') periodMultiplier = 1/52;
       else if (formData.payPeriod === 'monthly') periodMultiplier = 1/12;
       else if (formData.payPeriod === 'daily') periodMultiplier = 1/365;
-      
-      return total + (emp.salary * periodMultiplier);
+
+      return total + (1000 * periodMultiplier); // Using fixed salary for now
     }, 0);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     // Validation
     const requiredFields = ['name', 'startDate', 'endDate', 'payDate'];
     for (const field of requiredFields) {
@@ -82,7 +120,7 @@ const PayrollForm = ({ onSubmit, onCancel }) => {
     const startDate = new Date(formData.startDate);
     const endDate = new Date(formData.endDate);
     const payDate = new Date(formData.payDate);
-    
+
     if (startDate >= endDate) {
       toast({
         title: "Validation Error",
@@ -101,7 +139,7 @@ const PayrollForm = ({ onSubmit, onCancel }) => {
       return;
     }
 
-    if (formData.selectedEmployees.length === 0) {
+    if (formData.selectionMode === 'specific' && formData.selectedEmployees.length === 0) {
       toast({
         title: "Validation Error",
         description: "Please select at least one employee.",
@@ -110,19 +148,32 @@ const PayrollForm = ({ onSubmit, onCancel }) => {
       return;
     }
 
-    // In a real app, you would send this data to your API
-    console.log('Payroll form submitted:', {
-      ...formData,
-      totalAmount: calculateTotalAmount(),
-      employeeCount: formData.selectedEmployees.length
+    // Create PayRun first
+    api.post('/payruns', {
+      month: new Date(formData.startDate).getMonth() + 1,
+      year: new Date(formData.startDate).getFullYear(),
+      startDate: formData.startDate,
+      endDate: formData.endDate
+    }).then((payRunResponse) => {
+      const payRunId = payRunResponse.data.id;
+
+      // Generate payslips for the PayRun
+      return api.post(`/payslips/generate/${payRunId}`);
+    }).then(() => {
+      toast({
+        title: "Payroll Cycle Created",
+        description: `${formData.name} has been created successfully with ${formData.selectedEmployees.length} employees.`,
+      });
+
+      onSubmit(formData);
+    }).catch((error) => {
+      console.error('Error creating payroll:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create payroll cycle. Please try again.",
+        variant: "destructive",
+      });
     });
-    
-    toast({
-      title: "Payroll Cycle Created",
-      description: `${formData.name} has been created successfully with ${formData.selectedEmployees.length} employees.`,
-    });
-    
-    onSubmit(formData);
   };
 
   return (
@@ -209,53 +260,85 @@ const PayrollForm = ({ onSubmit, onCancel }) => {
       {/* Employee Selection */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Select Employees</CardTitle>
+          <CardTitle className="text-lg">Select Employees</CardTitle>
+          <CardDescription>Choose how to select employees for this payroll cycle</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Selection Mode */}
+          <div className="space-y-3">
             <div className="flex items-center space-x-2">
-              <Checkbox
+              <input
+                type="radio"
                 id="selectAll"
-                checked={formData.selectedEmployees.length === employees.length}
-                onCheckedChange={toggleAllEmployees}
+                name="selectionMode"
+                value="all"
+                checked={formData.selectionMode === 'all'}
+                onChange={(e) => handleSelectionModeChange(e.target.value)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
               />
-              <Label htmlFor="selectAll" className="text-sm font-normal cursor-pointer">
-                Select All ({employees.length})
+              <Label htmlFor="selectAll" className="text-sm font-medium cursor-pointer">
+                All Employees ({activeEmployees.length})
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="selectSpecific"
+                name="selectionMode"
+                value="specific"
+                checked={formData.selectionMode === 'specific'}
+                onChange={(e) => handleSelectionModeChange(e.target.value)}
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+              />
+              <Label htmlFor="selectSpecific" className="text-sm font-medium cursor-pointer">
+                Select Specific Employees
               </Label>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 max-h-60 overflow-y-auto">
-            {employees.map((employee) => (
-              <div key={employee.id} className="flex items-center justify-between p-2 border border-border rounded">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id={`employee-${employee.id}`}
-                    checked={formData.selectedEmployees.includes(employee.id)}
-                    onCheckedChange={(checked) => handleEmployeeToggle(employee.id, checked)}
-                  />
-                  <div>
-                    <Label htmlFor={`employee-${employee.id}`} className="font-medium cursor-pointer">
-                      {employee.firstName} {employee.lastName}
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {employee.position} • ${employee.salary.toLocaleString()}/year
-                    </p>
+
+          {/* Employee List for Specific Selection */}
+          {formData.selectionMode === 'specific' && (
+            <div className="space-y-3 max-h-96 overflow-y-auto border-t pt-4">
+              {isLoading ? (
+                <div className="text-center py-4">Loading employees...</div>
+              ) : activeEmployees.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">No active employees found</div>
+              ) : (
+                activeEmployees.map((employee) => (
+                  <div key={employee.id} className="flex items-center justify-between p-2 border border-border rounded">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id={`employee-${employee.id}`}
+                        checked={formData.selectedEmployees.includes(employee.id)}
+                        onCheckedChange={(checked) => handleEmployeeToggle(employee.id, checked)}
+                      />
+                      <div>
+                        <Label htmlFor={`employee-${employee.id}`} className="font-medium cursor-pointer">
+                          {employee.name}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {employee.service} • $1000/year
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                ))
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Summary */}
-      {formData.selectedEmployees.length > 0 && (
+      {(formData.selectionMode === 'all' || formData.selectedEmployees.length > 0) && (
         <Card className="bg-muted/50">
           <CardContent className="pt-6">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Selected Employees:</span>
-                <span className="font-semibold ml-2">{formData.selectedEmployees.length}</span>
+                <span className="font-semibold ml-2">
+                  {formData.selectionMode === 'all' ? activeEmployees.length : formData.selectedEmployees.length}
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Estimated Total:</span>

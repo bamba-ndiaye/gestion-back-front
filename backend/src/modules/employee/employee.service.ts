@@ -7,14 +7,15 @@ export async function createEmployee(
   email: string,
   telephone: string,
   service: string,
-  companyId: number
+  companyId: number,
+  baseSalary: number = 0,
+  bonus: number = 0,
+  deductions: number = 0
 ) {
   try {
     return prisma.employee.create({
-      data: { name, email, telephone, service, companyId },
-
+      data: { name, email, telephone, service, companyId, baseSalary, bonus, deductions },
     });
-    //   return await prisma.employee.create({ data });
   } catch (err: any) {
     if (err.code === "P2002" || err.message?.includes("Unique constraint")) {
       // violation contrainte unique
@@ -50,7 +51,16 @@ export async function getEmployeesByCompany(companyId: number) {
 // Update
 export async function updateEmployee(
   id: number,
-  data: { name?: string; email?: string; isActive?: boolean }
+  data: {
+    name?: string;
+    email?: string;
+    telephone?: string;
+    service?: string;
+    baseSalary?: number;
+    bonus?: number;
+    deductions?: number;
+    isActive?: boolean
+  }
 ) {
   return prisma.employee.update({ where: { id }, data });
 }
