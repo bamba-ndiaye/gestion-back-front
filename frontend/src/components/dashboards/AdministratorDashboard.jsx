@@ -616,7 +616,7 @@ const AdministratorDashboard = () => {
       </Dialog>
 
       <Dialog open={showPayrollForm} onOpenChange={setShowPayrollForm}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Launch New Payroll Cycle</DialogTitle>
           </DialogHeader>
