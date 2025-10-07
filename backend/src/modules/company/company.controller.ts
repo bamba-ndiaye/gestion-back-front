@@ -7,11 +7,13 @@ import * as companyService from './company.service';
 const prisma = new PrismaClient();
 
 export async function createCompany(req: Request, res: Response) {
-  const { name, address } = req.body;
+  const { name, address, logo, color, adminEmail, adminPassword } = req.body;
+  console.log('Create company request body:', req.body);
   try {
-    const company = await companyService.createCompany(name, address);
+    const company = await companyService.createCompany(name, address, logo, color, adminEmail, adminPassword);
     res.status(201).json(company);
   } catch (err: any) {
+    console.error('Create company error:', err.message);
     res.status(400).json({ error: err.message });
   }
 }
@@ -55,9 +57,9 @@ export async function getCompany(req: Request, res: Response) {
 
 export async function updateCompany(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const { name, address, isActive } = req.body;
+  const { name, address, logo, color, isActive } = req.body;
   try {
-    const company = await companyService.updateCompany(id, name, address, isActive);
+    const company = await companyService.updateCompany(id, name, address, logo, color, isActive);
     res.json(company);
   } catch (err: any) {
     res.status(400).json({ error: err.message });

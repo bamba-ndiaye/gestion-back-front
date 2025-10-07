@@ -73,6 +73,17 @@ const AdministratorDashboard = () => {
     enabled: !!effectiveCompanyId,
   });
 
+  // Fetch company admin email
+  const { data: companyAdmin } = useQuery({
+    queryKey: ['company-admin', effectiveCompanyId],
+    queryFn: async () => {
+      if (!effectiveCompanyId) return null;
+      const response = await api.get(`/companies/${effectiveCompanyId}/admin`);
+      return response.data;
+    },
+    enabled: !!effectiveCompanyId && showCompanyDetailsModal,
+  });
+
   // Fetch employee details for modal
   const { data: employeeDetails } = useQuery({
     queryKey: ['employee', selectedEmployeeForDetails?.id],
@@ -203,7 +214,10 @@ const AdministratorDashboard = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div
+        className="flex justify-between items-center p-4 rounded-lg"
+        style={{ backgroundColor: company?.color ? company.color + '20' : undefined }}
+      >
         <div>
           <div className="flex items-center space-x-3">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -228,7 +242,12 @@ const AdministratorDashboard = () => {
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
-          <Button onClick={handleLaunchPayroll} className="bg-gradient-to-r from-primary to-accent">
+          <Button
+            onClick={handleLaunchPayroll}
+            style={{
+              background: `linear-gradient(to right, ${company?.color || 'hsl(var(--primary))'}, hsl(var(--accent)))`
+            }}
+          >
             <PlayCircle className="h-4 w-4 mr-2" />
             Launch Payroll
           </Button>
@@ -395,7 +414,12 @@ const AdministratorDashboard = () => {
                       className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">
+                        <div
+                          className="p-2 rounded-lg"
+                          style={{
+                            background: `linear-gradient(to bottom right, ${company?.color || 'hsl(var(--primary))'}, hsl(var(--accent)))`
+                          }}
+                        >
                           <Calendar className="h-6 w-6 text-primary-foreground" />
                         </div>
                         <div>
@@ -541,6 +565,10 @@ const AdministratorDashboard = () => {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Adresse</label>
                   <p>{company.address || 'Non spécifiée'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Email Admin</label>
+                  <p>{companyAdmin?.email || 'Non spécifié'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Statut actif</label>

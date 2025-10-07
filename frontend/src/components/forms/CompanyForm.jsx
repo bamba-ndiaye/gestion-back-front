@@ -16,7 +16,10 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
     address: company?.address || '',
     currency: company?.currency || 'USD',
     payPeriod: company?.payPeriod || 'monthly',
-    logo: company?.logo || null
+    logo: company?.logo || null,
+    color: company?.color || '#007bff',
+    adminEmail: '',
+    adminPassword: ''
   });
   
   const [logoPreview, setLogoPreview] = useState(company?.logo || null);
@@ -58,7 +61,7 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
         setLogoPreview(e.target.result);
         setFormData(prev => ({
           ...prev,
-          logo: file
+          logo: e.target.result // data URL
         }));
       };
       reader.readAsDataURL(file);
@@ -95,6 +98,24 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
       return;
     }
 
+    if (!company && !formData.adminEmail.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Admin email is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!company && !formData.adminPassword.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Admin password is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       let response;
 
@@ -102,13 +123,19 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
         // Update existing company
         response = await api.put(`/companies/${company.id}`, {
           name: formData.name,
-          address: formData.address
+          address: formData.address,
+          logo: formData.logo ? formData.logo : undefined,
+          color: formData.color
         });
       } else {
         // Create new company
         response = await api.post('/companies', {
           name: formData.name,
-          address: formData.address
+          address: formData.address,
+          logo: formData.logo ? formData.logo : undefined,
+          color: formData.color,
+          adminEmail: formData.adminEmail,
+          adminPassword: formData.adminPassword
         });
       }
 
@@ -212,6 +239,19 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
         />
       </div>
 
+      {/* Color */}
+      <div className="space-y-2">
+        <Label htmlFor="color">Company Color</Label>
+        <Input
+          id="color"
+          type="color"
+          value={formData.color}
+          onChange={(e) => handleInputChange('color', e.target.value)}
+          className="w-full h-10"
+        />
+      </div>
+
+
       {/* Currency and Pay Period */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -250,15 +290,33 @@ const CompanyForm = ({ company, onSubmit, onCancel }) => {
       {/* Admin Account Info */}
       {!company && (
         <Card className="bg-muted/50">
-          <CardContent className="pt-6">
-            <h3 className="font-semibold mb-2">Admin Account</h3>
+          <CardContent className="pt-6 space-y-4">
+            <h3 className="font-semibold">Admin Account</h3>
             <p className="text-sm text-muted-foreground">
-              An administrator account will be automatically created with default credentials:
+              Enter the credentials for the company administrator account:
             </p>
-            <ul className="text-sm text-muted-foreground mt-2 space-y-1">
-              <li>• Email: admin@{formData.name.toLowerCase().replace(/\s+/g, '')}.com</li>
-              <li>• Password: admin123 (can be changed after login)</li>
-            </ul>
+            <div className="space-y-2">
+              <Label htmlFor="adminEmail">Admin Email *</Label>
+              <Input
+                id="adminEmail"
+                type="email"
+                value={formData.adminEmail}
+                onChange={(e) => handleInputChange('adminEmail', e.target.value)}
+                placeholder="admin@company.com"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="adminPassword">Admin Password *</Label>
+              <Input
+                id="adminPassword"
+                type="password"
+                value={formData.adminPassword}
+                onChange={(e) => handleInputChange('adminPassword', e.target.value)}
+                placeholder="Enter password"
+                required
+              />
+            </div>
           </CardContent>
         </Card>
       )}

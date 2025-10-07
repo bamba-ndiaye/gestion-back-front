@@ -13,27 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-
-// Middleware pour parser le JSON sans body-parser
-app.use((req, res, next) => {
-  if (req.headers['content-type'] === 'application/json') {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      try {
-        req.body = JSON.parse(body);
-      } catch (e) {
-        req.body = {};
-      }
-      next();
-    });
-  } else {
-    req.body = {};
-    next();
-  }
-});
+app.use(express.json({ limit: '10mb' }));
 app.use('/users', userRoutes);
 app.use('/companies', companyRoutes);
 app.use('/employees', employeeRoutes);

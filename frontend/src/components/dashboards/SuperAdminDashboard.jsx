@@ -269,8 +269,12 @@ const SuperAdminDashboard = () => {
                       className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">
-                          <Building2 className="h-6 w-6 text-primary-foreground" />
+                        <div className="p-2 rounded-lg flex items-center space-x-2">
+                          <div
+                            className="w-4 h-4 rounded-full border border-border"
+                            style={{ backgroundColor: company.color || '#007bff' }}
+                          ></div>
+                          <Building2 className="h-6 w-6 text-muted-foreground" />
                         </div>
                         <div>
                           <h3 className="font-semibold">{company.name}</h3>
@@ -436,11 +440,14 @@ const SuperAdminDashboard = () => {
 
       {/* Company Form Dialog */}
       <Dialog open={showCompanyForm} onOpenChange={setShowCompanyForm}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedCompany ? "Edit Company" : "Create New Company"}
             </DialogTitle>
+            <DialogDescription>
+              {selectedCompany ? "Update the company information." : "Fill in the details to create a new company."}
+            </DialogDescription>
           </DialogHeader>
           <CompanyForm
             company={selectedCompany}

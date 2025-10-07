@@ -43,6 +43,10 @@ export async function getEmployees(filter?: {
   });
 }
 
+export async function getEmployeesByCompany(companyId: number) {
+  return getEmployees({ companyId });
+}
+
 // Update
 export async function updateEmployee(
   id: number,

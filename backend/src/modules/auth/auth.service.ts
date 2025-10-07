@@ -36,7 +36,7 @@ export async function loginUser(email: string, password: string) {
       redirectUrl = '/super-admin';
       break;
     case 'ADMIN':
-      redirectUrl = '/admin';
+      redirectUrl = `/admin?companyId=${user.companyId}`;
       break;
     case 'CASHIER':
       redirectUrl = '/';
